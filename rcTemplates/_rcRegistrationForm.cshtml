@@ -1,0 +1,138 @@
+﻿@{
+
+    //very simple contact form add-on for razorC.net
+
+    var customerName = Request["customerName"];
+    var customerEmail = Request["customerEmail"];
+    var customerPhone = Request["customerPhone"];
+    var customerRequest = Request["customerRequest"];
+    var isActive=true;
+    var errMSG="";
+
+    if (IsPost){
+
+
+     Validation.RequireFields("customerName", "customerEmail", "customerPhone","customerRequest");
+     Validation.Add("customerEmail",Validator.Regex(@"\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*", "Please enter a correct email address format"));
+
+
+        if (Validation.IsValid() ){
+
+            var mailBody = "";
+            foreach (var item in Request.Form)
+            {
+                mailBody += item.ToString() + " :" + Request[item.ToString()] + "<br/>";
+            }
+
+            try {        
+
+               // Initialize WebMail helper
+                WebMail.SmtpServer = App.SmtpServer;
+                WebMail.SmtpPort = App.SmtpPort;
+                WebMail.EnableSsl=App.EnableSsl;
+                WebMail.UserName = App.UserName;
+                WebMail.Password = App.Password;
+                WebMail.From = App.From;
+
+
+             // Send email        
+             WebMail.Send(to: App.smtpTo, subject: "E-mail from website:" + App.siteName, body: mailBody);    
+                errMSG="<div class=\"alert alert-success\">Thank You! Email sent</div>";
+                isActive = false;
+
+             }    catch (Exception ex ) {        
+             errMSG= "<div class=\"alert alert-danger\"><b>The email was <em>not</em> sent.</b><br/>" + ex.Message.ToString() + "</div>";
+
+            }
+
+            //send to db
+            var db = Database.Open("razorC");
+
+            var sqlInsert = "Insert into es_Registrations "
+            +"(surname) values "
+            +"(@0)";
+            try
+            {
+                db.Execute(sqlInsert, customerName);   
+                errMSG="<div class=\"alert alert-success\">Thank You! Data save</div>";
+            }
+            catch (Exception ex)
+            {
+                errMSG = ex.Message.ToString();
+            }
+        }
+    }
+
+
+}
+
+<h1>@PageData[0].wTitle</h1>
+@Html.Raw(PageData[0].wText)
+<form method="post" action="" role="form">
+
+    @Html.Raw(errMSG)
+    <div data-ng-controller="RegCtrl">
+        <div class="left">Bestemming</div>
+
+        <div class="right">
+        Indonesie
+        </div>
+
+        <div class="left">Soort aanvraag</div>
+        <div class="right" data-ng-init="typeReg=0">
+            <select data-ng-model="typeReg" class="form-control" name="applicationType">
+                <option value="0">Selecteer soort</option>
+                <option value="1">Single entry</option>
+                <option value="3">Multiple entry</option>
+            </select>
+        </div>
+
+        <div class="left" data-ng-show="typeReg != 0" data-ng-hide="typeReg == 0">Soort visum</div>
+        <div class="right" data-ng-show="typeReg != 0" data-ng-hide="typeReg == 0">
+            <select data-ng-model="typeVisa" class="form-control" name="visaType " data-ng-init="typeVisa=0">
+                <option value="0">Selecteer soort</option>
+                <option value="1">Zakelijk</option>
+                <option value="2">Toerisme</option>
+                <option value="19">Familie/Privé</option>
+            </select>
+        </div>
+
+        <div class="left" data-ng-show="typeVisa != 0" data-ng-hide="typeVisa == 0">Visa duur</div>
+        <div class="right" data-ng-show="typeVisa != 0" data-ng-hide="typeVisa == 0">
+            <select data-ng-model="typeFees" class="form-control" data-ng-init="typeFees=0">
+                <option value="0">Kies duur</option>
+                <option value="290">2 maanden</option>
+            </select>
+        </div>
+        <div class="left" data-ng-show="typeFees != 0" data-ng-hide="typeFees == 0">Visa snelheid</div>
+        <div class="right" data-ng-show="typeFees != 0" data-ng-hide="typeFees == 0">
+            <select id="serviceFeeSpeed" class="form-control" data-ng-init="serviceFeeSpeed=0">
+                <option value="0">---</option>
+                <option value="normal">Normaal</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="customerName">Your name:</label>
+            <input type="text" name="customerName" value="@customerName" @Validation.For("customerName") class="form-control" id="customerName" placeholder="Enter name" /> @Html.ValidationMessage("customerName")
+        </div>
+
+        <div class="form-group">
+            <label for="customerEmail">Your e-mail:</label>
+            <input type="text" name="customerEmail" value="@customerEmail" @Validation.For("customerEmail") class="form-control" id="customerEmail" placeholder="Enter e-mail" /> @Html.ValidationMessage("customerEmail")
+        </div>
+
+        <div class="form-group">
+            <label for="customerPhone">Your phone:</label>
+            <input type="text" name="customerPhone" value="@customerPhone" @Validation.For("customerPhone") class="form-control" id="customerPhone" placeholder="Enter phone" /> @Html.ValidationMessage("customerPhone")
+        </div>
+
+        <div class="form-group">
+            <label for="customerRequest">Message:</label>
+            <textarea name="customerRequest" cols="45" rows="4" @Validation.For("customerRequest") class="form-control" id="customerRequest" placeholder="Message">@customerRequest</textarea> @Html.ValidationMessage("customerRequest")
+        </div>
+
+        <div class="form-group"><input type="submit" value="Submit" @(!isActive ? "disabled=disabled":"") class="btn btn-primary" /></div>
+
+    </div>
+</form>
